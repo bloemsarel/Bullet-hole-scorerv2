@@ -59,6 +59,7 @@
         .empty-state { text-align: center; padding: 40px 20px; color: #666; }
         .info-box { background: #1a1a1a; border: 2px solid #333; padding: 12px; border-radius: 8px; margin-bottom: 20px; font-size: 12px; color: #888; }
         .info-box strong { color: #ff6b00; }
+        .debug-info { background: #000; border: 1px solid #333; padding: 8px; border-radius: 4px; margin-top: 10px; font-size: 10px; color: #666; font-family: monospace; }
         @media (max-width: 500px) { .score-number { font-size: 56px; } .target-score { font-size: 18px; } }
     </style>
 </head>
@@ -71,6 +72,7 @@
 
         <div class="info-box">
             <strong>✓ Fixed:</strong> Accurate mm-based scoring | Proper X-ring detection | Better hole detection
+            <div class="debug-info" id="debugInfo">System ready...</div>
         </div>
 
         <div id="mainSection">
@@ -80,9 +82,9 @@
             </div>
 
             <div class="button-group">
-                <input type="file" id="cameraInput" accept="image/*">
-                <button class="btn btn-primary" onclick="openCamera()">📸 TAKE PHOTO</button>
-                <button class="btn btn-secondary" onclick="selectImage()">📁 SELECT IMAGE</button>
+                <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display: none;">
+                <button class="btn btn-primary" onclick="openCamera()" id="cameraBtn">📸 TAKE PHOTO</button>
+                <button class="btn btn-secondary" onclick="selectImage()" id="fileBtn">📁 SELECT IMAGE</button>
             </div>
 
             <div class="error" id="errorMessage"></div>
@@ -151,39 +153,132 @@
         const TARGET_DIAMETER_MM = 48.0;  // 24mm radius * 2
         const TARGET_SIZE_RATIO = 0.82;  // Target occupies 82% of cell width
 
+        // Initialize when DOM is ready
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM ready, setting up camera input...');
+            debugLog('✓ App loaded');
+            
+            const fileInput = document.getElementById('cameraInput');
+            if (fileInput) {
+                fileInput.addEventListener('change', handleFileSelect);
+                console.log('Camera input listener attached');
+                debugLog('✓ Camera ready');
+            } else {
+                console.error('Camera input not found!');
+                debugLog('✗ Camera input ERROR');
+            }
+            
+            // Initialize history count
+            updateHistoryCount();
+        });
+
+        function debugLog(message) {
+            const debugDiv = document.getElementById('debugInfo');
+            if (debugDiv) {
+                const timestamp = new Date().toLocaleTimeString();
+                debugDiv.textContent = `[${timestamp}] ${message}`;
+            }
+            console.log(message);
+        }
+
         function openCamera() {
-            console.log('Opening camera...');
+            debugLog('📸 Opening camera...');
             const input = document.getElementById('cameraInput');
+            if (!input) {
+                console.error('Input element not found!');
+                showError('Camera input not found');
+                debugLog('✗ Input not found');
+                return;
+            }
+            
+            // Reset input
+            input.value = '';
+            // Set capture mode for camera
             input.setAttribute('capture', 'environment');
-            input.click();
+            input.setAttribute('accept', 'image/*');
+            
+            // Trigger file picker
+            try {
+                input.click();
+                debugLog('✓ Camera click triggered');
+            } catch (e) {
+                debugLog('✗ Click failed: ' + e.message);
+                showError('Could not open camera: ' + e.message);
+            }
         }
 
         function selectImage() {
-            console.log('Opening file picker...');
+            debugLog('📁 Opening file picker...');
             const input = document.getElementById('cameraInput');
+            if (!input) {
+                console.error('Input element not found!');
+                showError('File input not found');
+                debugLog('✗ Input not found');
+                return;
+            }
+            
+            // Reset input
+            input.value = '';
+            // Remove capture mode for file selection
             input.removeAttribute('capture');
-            input.click();
+            input.setAttribute('accept', 'image/*');
+            
+            // Trigger file picker
+            try {
+                input.click();
+                debugLog('✓ File picker click triggered');
+            } catch (e) {
+                debugLog('✗ Click failed: ' + e.message);
+                showError('Could not open file picker: ' + e.message);
+            }
         }
 
-        document.getElementById('cameraInput').addEventListener('change', function(e) {
-            console.log('File selected');
+        function handleFileSelect(e) {
+            debugLog('📷 File selected');
             const file = e.target.files[0];
-            if (!file) return;
+            
+            if (!file) {
+                debugLog('✗ No file selected');
+                return;
+            }
+
+            debugLog(`✓ ${file.name} (${Math.round(file.size/1024)}KB)`);
+            
+            // Validate file type
+            if (!file.type.startsWith('image/')) {
+                showError('Please select an image file');
+                debugLog('✗ Invalid file type: ' + file.type);
+                return;
+            }
 
             showError('');
             document.getElementById('results').style.display = 'none';
             
+            // Show loading immediately
+            const statusBox = document.getElementById('statusBox');
+            statusBox.style.display = 'block';
+            debugLog('⏳ Loading image...');
+            
             const reader = new FileReader();
             reader.onload = function(event) {
-                console.log('File loaded');
+                debugLog('✓ Image loaded, processing...');
                 const img = document.getElementById('imagePreview');
                 img.src = event.target.result;
                 img.style.display = 'block';
-                processImage(event.target.result);
+                
+                // Process image immediately
+                setTimeout(() => {
+                    processImage(event.target.result);
+                }, 100);
             };
-            reader.onerror = () => showError('Failed to load image');
+            reader.onerror = () => {
+                console.error('FileReader error');
+                document.getElementById('statusBox').style.display = 'none';
+                showError('Failed to load image');
+                debugLog('✗ Failed to load image');
+            };
             reader.readAsDataURL(file);
-        });
+        }
 
         function showError(message) {
             const errorDiv = document.getElementById('errorMessage');
@@ -193,7 +288,7 @@
         }
 
         function processImage(imageSrc) {
-            console.log('Processing...');
+            debugLog('🔍 Analyzing image...');
             const statusBox = document.getElementById('statusBox');
             statusBox.style.display = 'block';
             
@@ -201,19 +296,26 @@
             img.onload = function() {
                 try {
                     currentImage = img;
+                    debugLog(`✓ Image: ${img.width}x${img.height}px`);
                     const results = detectAndScore(img);
                     processedResults = results;
                     displayResults(results);
                     statusBox.style.display = 'none';
                     document.getElementById('results').style.display = 'block';
+                    debugLog(`✓ Score: ${results.totalScore} (${results.xRingCount}X)`);
                     console.log('Done!', results);
                 } catch (error) {
                     console.error('Error:', error);
                     statusBox.style.display = 'none';
                     showError('Error: ' + error.message);
+                    debugLog('✗ Processing error: ' + error.message);
                 }
             };
-            img.onerror = () => { statusBox.style.display = 'none'; showError('Failed to load image'); };
+            img.onerror = () => { 
+                statusBox.style.display = 'none'; 
+                showError('Failed to load image');
+                debugLog('✗ Image load failed');
+            };
             img.src = imageSrc;
         }
 
@@ -635,8 +737,7 @@
             document.getElementById('historyCount').textContent = records.length;
         }
 
-        updateHistoryCount();
-        console.log('Ready! Using mm-based scoring.');
+        console.log('Target Scorer v2.0 Ready!');
     </script>
 </body>
 </html>
