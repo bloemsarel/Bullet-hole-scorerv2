@@ -1,0 +1,43 @@
+🎯 INSTALLATION INSTRUCTIONS
+============================
+
+WHAT YOU NEED:
+- index.html (the main app file)
+- README.md (optional - documentation)
+
+STEP-BY-STEP:
+-------------
+
+1. Go to your GitHub repository:
+   https://github.com/bloemsarel/Bullet-hole-scorerv2
+
+2. Click "Add file" → "Upload files"
+
+3. Drag these files into the upload area:
+   ✓ index.html
+   ✓ README.md (optional)
+
+4. Scroll down and click "Commit changes"
+
+5. Wait 2-3 minutes for GitHub Pages to update
+
+6. Visit your site:
+   https://bloemsarel.github.io/Bullet-hole-scorerv2/
+
+DONE! 🎉
+
+TESTING:
+--------
+On your phone:
+- Tap "📸 TAKE PHOTO" → Camera should open
+- Take a photo of your target sheet
+- Watch the green debug text show progress
+- See your scores!
+
+TROUBLESHOOTING:
+----------------
+- If camera doesn't work, use "📁 SELECT IMAGE" instead
+- Check the debug panel (green text) for status
+- Make sure you're on HTTPS (GitHub Pages is automatic)
+
+Need help? Check README.md for full documentation.

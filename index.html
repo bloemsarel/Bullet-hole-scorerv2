@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="mobile-web-app-capable" content="yes">
-    <title>Target Scorer - Fixed</title>
+    <title>Target Scorer v3</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, sans-serif; background: #0a0a0a; color: #fff; padding: 15px; }
@@ -17,13 +17,35 @@
         .shooter-input input { width: 100%; padding: 12px; background: #000; border: 2px solid #333; color: #fff; font-size: 16px; border-radius: 5px; }
         .shooter-input input:focus { outline: none; border-color: #ff6b00; }
         .button-group { display: grid; gap: 15px; margin-bottom: 20px; }
-        .btn { padding: 18px; font-size: 18px; font-weight: 700; text-transform: uppercase; border: none; border-radius: 8px; cursor: pointer; transition: all 0.2s; letter-spacing: 1px; }
+        
+        /* Make labels look like buttons */
+        .file-input-wrapper { position: relative; overflow: hidden; display: inline-block; width: 100%; }
+        .file-input-wrapper input[type=file] { position: absolute; left: -9999px; }
+        .file-input-label { 
+            display: block;
+            padding: 18px; 
+            font-size: 18px; 
+            font-weight: 700; 
+            text-transform: uppercase; 
+            border: none; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            transition: all 0.2s; 
+            letter-spacing: 1px;
+            text-align: center;
+        }
+        .file-input-label.primary { background: linear-gradient(135deg, #ff6b00, #ff8800); color: #000; }
+        .file-input-label.primary:active { transform: scale(0.98); background: #ff6b00; }
+        .file-input-label.secondary { background: #1a1a1a; color: #fff; border: 2px solid #333; }
+        .file-input-label.secondary:active { background: #333; }
+        
+        .btn { padding: 18px; font-size: 18px; font-weight: 700; text-transform: uppercase; border: none; border-radius: 8px; cursor: pointer; transition: all 0.2s; letter-spacing: 1px; display: block; width: 100%; }
         .btn-primary { background: linear-gradient(135deg, #ff6b00, #ff8800); color: #000; }
         .btn-primary:active { transform: scale(0.98); background: #ff6b00; }
         .btn-secondary { background: #1a1a1a; color: #fff; border: 2px solid #333; }
         .btn-secondary:active { background: #333; }
         .btn-danger { background: #ff3344; color: #fff; }
-        #cameraInput { display: none; }
+        
         #imagePreview { width: 100%; border-radius: 8px; margin: 20px 0; display: none; border: 2px solid #333; }
         .status { background: #1a1a1a; padding: 15px; border-radius: 8px; text-align: center; margin: 20px 0; border: 2px solid #333; }
         .status.processing { border-color: #ff6b00; }
@@ -59,7 +81,7 @@
         .empty-state { text-align: center; padding: 40px 20px; color: #666; }
         .info-box { background: #1a1a1a; border: 2px solid #333; padding: 12px; border-radius: 8px; margin-bottom: 20px; font-size: 12px; color: #888; }
         .info-box strong { color: #ff6b00; }
-        .debug-info { background: #000; border: 1px solid #333; padding: 8px; border-radius: 4px; margin-top: 10px; font-size: 10px; color: #666; font-family: monospace; }
+        .debug-info { background: #000; border: 1px solid #333; padding: 8px; border-radius: 4px; margin-top: 10px; font-size: 10px; color: #0f0; font-family: monospace; }
         @media (max-width: 500px) { .score-number { font-size: 56px; } .target-score { font-size: 18px; } }
     </style>
 </head>
@@ -67,12 +89,12 @@
     <div class="container">
         <div class="header">
             <h1>🎯 TARGET SCORER</h1>
-            <div class="version">v2.0 - Fixed Scoring</div>
+            <div class="version">v3.0 - Camera Fixed!</div>
         </div>
 
         <div class="info-box">
-            <strong>✓ Fixed:</strong> Accurate mm-based scoring | Proper X-ring detection | Better hole detection
-            <div class="debug-info" id="debugInfo">System ready...</div>
+            <strong>✓ Fixed:</strong> Camera now works! | Accurate mm-based scoring | Proper X-ring detection
+            <div class="debug-info" id="debugInfo">Ready to scan targets...</div>
         </div>
 
         <div id="mainSection">
@@ -82,9 +104,17 @@
             </div>
 
             <div class="button-group">
-                <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display: none;">
-                <button class="btn btn-primary" onclick="openCamera()" id="cameraBtn">📸 TAKE PHOTO</button>
-                <button class="btn btn-secondary" onclick="selectImage()" id="fileBtn">📁 SELECT IMAGE</button>
+                <!-- Camera Input -->
+                <div class="file-input-wrapper">
+                    <input type="file" id="cameraInput" accept="image/*" capture="environment">
+                    <label for="cameraInput" class="file-input-label primary">📸 TAKE PHOTO</label>
+                </div>
+                
+                <!-- File Input -->
+                <div class="file-input-wrapper">
+                    <input type="file" id="fileInput" accept="image/*">
+                    <label for="fileInput" class="file-input-label secondary">📁 SELECT IMAGE</label>
+                </div>
             </div>
 
             <div class="error" id="errorMessage"></div>
@@ -132,14 +162,14 @@
     </div>
 
     <script>
-        console.log('Target Scorer v2.0 - Fixed');
+        console.log('Target Scorer v3.0 - Camera Fixed!');
 
         let currentImage = null;
         let processedResults = null;
 
         // Scoring configuration (in mm - matching Python script)
         const SCORING_ZONES = [
-            { radius: 0.5, score: 10, name: '0.5mm(X)', isX: true },   // X-ring
+            { radius: 0.5, score: 10, name: '0.5mm(X)', isX: true },
             { radius: 6, score: 10, name: '6mm', isX: false },
             { radius: 9, score: 9, name: '9mm', isX: false },
             { radius: 12, score: 8, name: '12mm', isX: false },
@@ -149,87 +179,27 @@
             { radius: 24, score: 4, name: '24mm', isX: false }
         ];
 
-        const BULLET_RADIUS_MM = 2.5;  // .22 bullet hole radius
-        const TARGET_DIAMETER_MM = 48.0;  // 24mm radius * 2
-        const TARGET_SIZE_RATIO = 0.82;  // Target occupies 82% of cell width
-
-        // Initialize when DOM is ready
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('DOM ready, setting up camera input...');
-            debugLog('✓ App loaded');
-            
-            const fileInput = document.getElementById('cameraInput');
-            if (fileInput) {
-                fileInput.addEventListener('change', handleFileSelect);
-                console.log('Camera input listener attached');
-                debugLog('✓ Camera ready');
-            } else {
-                console.error('Camera input not found!');
-                debugLog('✗ Camera input ERROR');
-            }
-            
-            // Initialize history count
-            updateHistoryCount();
-        });
+        const BULLET_RADIUS_MM = 2.5;
+        const TARGET_DIAMETER_MM = 48.0;
+        const TARGET_SIZE_RATIO = 0.82;
 
         function debugLog(message) {
             const debugDiv = document.getElementById('debugInfo');
             if (debugDiv) {
                 const timestamp = new Date().toLocaleTimeString();
                 debugDiv.textContent = `[${timestamp}] ${message}`;
+                debugDiv.style.color = message.includes('✗') ? '#f00' : '#0f0';
             }
             console.log(message);
         }
 
-        function openCamera() {
-            debugLog('📸 Opening camera...');
-            const input = document.getElementById('cameraInput');
-            if (!input) {
-                console.error('Input element not found!');
-                showError('Camera input not found');
-                debugLog('✗ Input not found');
-                return;
-            }
-            
-            // Reset input
-            input.value = '';
-            // Set capture mode for camera
-            input.setAttribute('capture', 'environment');
-            input.setAttribute('accept', 'image/*');
-            
-            // Trigger file picker
-            try {
-                input.click();
-                debugLog('✓ Camera click triggered');
-            } catch (e) {
-                debugLog('✗ Click failed: ' + e.message);
-                showError('Could not open camera: ' + e.message);
-            }
-        }
-
-        function selectImage() {
-            debugLog('📁 Opening file picker...');
-            const input = document.getElementById('cameraInput');
-            if (!input) {
-                console.error('Input element not found!');
-                showError('File input not found');
-                debugLog('✗ Input not found');
-                return;
-            }
-            
-            // Reset input
-            input.value = '';
-            // Remove capture mode for file selection
-            input.removeAttribute('capture');
-            input.setAttribute('accept', 'image/*');
-            
-            // Trigger file picker
-            try {
-                input.click();
-                debugLog('✓ File picker click triggered');
-            } catch (e) {
-                debugLog('✗ Click failed: ' + e.message);
-                showError('Could not open file picker: ' + e.message);
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.style.display = message ? 'block' : 'none';
+            errorDiv.textContent = message;
+            if (message) {
+                console.error('Error:', message);
+                debugLog('✗ ' + message);
             }
         }
 
@@ -244,29 +214,25 @@
 
             debugLog(`✓ ${file.name} (${Math.round(file.size/1024)}KB)`);
             
-            // Validate file type
             if (!file.type.startsWith('image/')) {
                 showError('Please select an image file');
-                debugLog('✗ Invalid file type: ' + file.type);
                 return;
             }
 
             showError('');
             document.getElementById('results').style.display = 'none';
             
-            // Show loading immediately
             const statusBox = document.getElementById('statusBox');
             statusBox.style.display = 'block';
             debugLog('⏳ Loading image...');
             
             const reader = new FileReader();
             reader.onload = function(event) {
-                debugLog('✓ Image loaded, processing...');
+                debugLog('✓ Image loaded');
                 const img = document.getElementById('imagePreview');
                 img.src = event.target.result;
                 img.style.display = 'block';
                 
-                // Process image immediately
                 setTimeout(() => {
                     processImage(event.target.result);
                 }, 100);
@@ -275,20 +241,12 @@
                 console.error('FileReader error');
                 document.getElementById('statusBox').style.display = 'none';
                 showError('Failed to load image');
-                debugLog('✗ Failed to load image');
             };
             reader.readAsDataURL(file);
         }
 
-        function showError(message) {
-            const errorDiv = document.getElementById('errorMessage');
-            errorDiv.style.display = message ? 'block' : 'none';
-            errorDiv.textContent = message;
-            if (message) console.error('Error:', message);
-        }
-
         function processImage(imageSrc) {
-            debugLog('🔍 Analyzing image...');
+            debugLog('🔍 Analyzing targets...');
             const statusBox = document.getElementById('statusBox');
             statusBox.style.display = 'block';
             
@@ -302,19 +260,17 @@
                     displayResults(results);
                     statusBox.style.display = 'none';
                     document.getElementById('results').style.display = 'block';
-                    debugLog(`✓ Score: ${results.totalScore} (${results.xRingCount}X)`);
-                    console.log('Done!', results);
+                    debugLog(`✓ SCORE: ${results.totalScore} pts | ${results.xRingCount}X`);
+                    console.log('Processing complete!', results);
                 } catch (error) {
                     console.error('Error:', error);
                     statusBox.style.display = 'none';
                     showError('Error: ' + error.message);
-                    debugLog('✗ Processing error: ' + error.message);
                 }
             };
             img.onerror = () => { 
                 statusBox.style.display = 'none'; 
                 showError('Failed to load image');
-                debugLog('✗ Image load failed');
             };
             img.src = imageSrc;
         }
@@ -329,7 +285,6 @@
             const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
             const data = imageData.data;
             
-            // Define grid region (5x5 grid of targets)
             const gridRegion = { 
                 x: canvas.width * 0.05, 
                 y: canvas.height * 0.05, 
@@ -339,7 +294,6 @@
             const cellWidth = gridRegion.width / 5;
             const cellHeight = gridRegion.height / 5;
             
-            // Create 25 target regions
             const targets = [];
             for (let row = 0; row < 5; row++) {
                 for (let col = 0; col < 5; col++) {
@@ -359,13 +313,9 @@
                 }
             }
             
-            // Detect holes in each target
             detectHolesInTargets(data, canvas.width, canvas.height, targets);
-            
-            // Score each target using CORRECT mm-based scoring
             scoreTargets(targets, cellWidth);
             
-            // Calculate totals
             let totalScore = 0, xRingCount = 0, shotsFired = 0, targetsHit = 0;
             targets.forEach(t => {
                 totalScore += t.score;
@@ -395,7 +345,6 @@
                 const endX = Math.floor(target.x + target.width);
                 const endY = Math.floor(target.y + target.height);
                 
-                // Scan target area for dark pixels (bullet holes)
                 for (let y = startY; y < endY; y += 2) {
                     for (let x = startX; x < endX; x += 2) {
                         if (x < 0 || x >= width || y < 0 || y >= height) continue;
@@ -405,12 +354,9 @@
                         const pixelIdx = idx * 4;
                         const brightness = (data[pixelIdx] + data[pixelIdx + 1] + data[pixelIdx + 2]) / 3;
                         
-                        // CRITICAL: Very dark pixels only (35 threshold matches Python)
-                        // Printed circles are gray (~120-180), bullet holes are black (~10-50)
                         if (brightness < 35) {
                             const hole = floodFill(data, width, height, x, y, visited, 35);
                             
-                            // Filter by size and properties
                             if (isValidBulletHole(hole, data, width, target)) {
                                 target.holes.push(hole);
                             }
@@ -469,27 +415,18 @@
         }
 
         function isValidBulletHole(hole, data, imageWidth, target) {
-            // Size filter (8-600 pixels matches Python)
             if (hole.area < 8 || hole.area > 600) return false;
-            
-            // Aspect ratio check - should be roughly circular
             if (hole.height === 0) return false;
             const aspect = hole.width / hole.height;
             if (aspect < 0.25 || aspect > 4.0) return false;
             
-            // Distance from target center check
             const dx = hole.centerX - target.centerX;
             const dy = hole.centerY - target.centerY;
             const dist = Math.sqrt(dx * dx + dy * dy);
             
-            // Must be within scoring zone but not in the very center (printed dot)
             if (dist < 2 || dist > 125) return false;
-            
-            // Solidity check - bullet holes are FILLED (high solidity >= 0.65)
-            // Printed circles are HOLLOW (low solidity)
             if (hole.solidity < 0.65) return false;
             
-            // Darkness check - must be genuinely dark
             let sumBrightness = 0;
             let count = 0;
             for (const {x, y} of hole.pixels) {
@@ -513,7 +450,6 @@
                     return;
                 }
                 
-                // RULE: If multiple holes, use the furthest from center (worst shot)
                 const furthestHole = target.holes.reduce((max, hole) => {
                     const dx = hole.centerX - target.centerX;
                     const dy = hole.centerY - target.centerY;
@@ -524,50 +460,33 @@
                 const hole = furthestHole.hole;
                 const distancePixels = furthestHole.dist;
                 
-                // Calculate CORRECT score using mm-based measurements
                 const result = calculateScore(distancePixels, cellWidth);
                 
                 target.score = result.score;
                 target.xRing = result.isX;
                 target.zoneName = result.zoneName;
-                target.scoredHole = hole;  // Store which hole was scored
+                target.scoredHole = hole;
             });
         }
 
         function calculateScore(distancePixels, targetWidthPixels) {
-            /**
-             * CORRECT SCORING ALGORITHM (matches Python script)
-             * 
-             * Key points:
-             * 1. Target diameter: 48mm (24mm radius * 2)
-             * 2. Target occupies 82% of cell width
-             * 3. Bullet hole radius: 2.5mm
-             * 4. For X-ring: check if EDGE of bullet hole is within 0.5mm of center
-             *    This means center can be up to 3mm away (0.5 + 2.5)
-             */
-            
-            // Calibration: Convert pixels to mm
             const targetDiameterPx = targetWidthPixels * TARGET_SIZE_RATIO;
             const pixelsPerMm = targetDiameterPx / TARGET_DIAMETER_MM;
             const distanceMm = distancePixels / pixelsPerMm;
             
-            // For X-ring: calculate edge distance
             const edgeDistanceMm = distanceMm - BULLET_RADIUS_MM;
             
-            // Check X-ring first (special case)
             if (edgeDistanceMm <= 0.5) {
                 return { score: 10, zoneName: '0.5mm(X)', isX: true };
             }
             
-            // Check other zones (using center distance)
             for (const zone of SCORING_ZONES) {
-                if (zone.isX) continue;  // Already checked X-ring
+                if (zone.isX) continue;
                 if (distanceMm <= zone.radius) {
                     return { score: zone.score, zoneName: zone.name, isX: false };
                 }
             }
             
-            // Outside all scoring zones
             return { score: 0, zoneName: 'MISS', isX: false };
         }
 
@@ -578,7 +497,6 @@
             document.getElementById('avgScore').textContent = results.avgScore;
             document.getElementById('targetsHit').textContent = results.targetsHit + '/25';
             
-            // Display target grid
             const grid = document.getElementById('targetGrid');
             grid.innerHTML = '';
             results.targets.forEach(target => {
@@ -592,7 +510,6 @@
                 grid.appendChild(cell);
             });
             
-            // Draw annotated image
             const canvas = document.getElementById('resultCanvas');
             const ctx = canvas.getContext('2d');
             canvas.width = currentImage.width;
@@ -600,12 +517,10 @@
             ctx.drawImage(currentImage, 0, 0);
             
             results.targets.forEach(target => {
-                // Draw target boundary
                 ctx.strokeStyle = 'rgba(255, 107, 0, 0.3)';
                 ctx.lineWidth = 2;
                 ctx.strokeRect(target.x, target.y, target.width, target.height);
                 
-                // Draw scored hole
                 if (target.scoredHole) {
                     const hole = target.scoredHole;
                     ctx.beginPath();
@@ -614,7 +529,6 @@
                     ctx.lineWidth = 3;
                     ctx.stroke();
                     
-                    // Draw crosshair
                     ctx.beginPath();
                     ctx.moveTo(hole.centerX - 8, hole.centerY);
                     ctx.lineTo(hole.centerX + 8, hole.centerY);
@@ -622,14 +536,12 @@
                     ctx.lineTo(hole.centerX, hole.centerY + 8);
                     ctx.stroke();
                     
-                    // Draw score text
                     ctx.fillStyle = target.xRing ? '#ffd700' : '#00ff88';
                     ctx.font = 'bold 20px Arial';
                     ctx.fillText(target.score + (target.xRing ? 'X' : ''), 
                                 hole.centerX + 15, hole.centerY - 10);
                 }
                 
-                // Draw target number
                 ctx.fillStyle = '#ff6b00';
                 ctx.font = 'bold 16px Arial';
                 ctx.fillText('#' + target.number, target.x + 5, target.y + 20);
@@ -657,8 +569,10 @@
             document.getElementById('imagePreview').style.display = 'none';
             document.getElementById('results').style.display = 'none';
             document.getElementById('cameraInput').value = '';
+            document.getElementById('fileInput').value = '';
             processedResults = null;
             showError('');
+            debugLog('Ready to scan targets...');
         }
 
         function toggleHistory() {
@@ -737,7 +651,27 @@
             document.getElementById('historyCount').textContent = records.length;
         }
 
-        console.log('Target Scorer v2.0 Ready!');
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            debugLog('✓ App initialized');
+            
+            // Attach event listeners to both inputs
+            const cameraInput = document.getElementById('cameraInput');
+            const fileInput = document.getElementById('fileInput');
+            
+            if (cameraInput) {
+                cameraInput.addEventListener('change', handleFileSelect);
+                debugLog('✓ Camera input ready');
+            }
+            
+            if (fileInput) {
+                fileInput.addEventListener('change', handleFileSelect);
+                debugLog('✓ File input ready');
+            }
+            
+            updateHistoryCount();
+            console.log('✓ Target Scorer v3.0 Ready!');
+        });
     </script>
 </body>
 </html>
